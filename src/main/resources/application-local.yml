@@ -1,0 +1,45 @@
+# Local Development Configuration
+# This file is for local development only and is ignored by git
+
+server:
+  port: 8080
+  servlet:
+    context-path: /config
+
+spring:
+  application:
+    name: config-server
+  cloud:
+    config:
+      server:
+        git:
+          uri: https://github.com/cysongs/platform-config
+          default-label: main
+          clone-on-start: true
+          force-pull: true
+          timeout: 10
+          search-paths:
+            - "."
+          # For local development, you can hardcode credentials here
+          # OR set them as environment variables (recommended)
+          username: ${GIT_USERNAME:}
+          password: ${GIT_TOKEN:}
+
+          # Uncomment to skip SSL validation (not recommended for production)
+          # skip-ssl-validation: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,env,configprops
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    org.springframework.cloud.config: DEBUG
+    com.example.configserver: DEBUG
+    # Uncomment for more detailed git logs
+    # org.eclipse.jgit: DEBUG

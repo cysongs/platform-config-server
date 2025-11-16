@@ -1,0 +1,15 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="ConfigServerApplication (Local Profile)" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <module name="config-server" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="com.example.configserver.ConfigServerApplication" />
+    <option name="ACTIVE_PROFILES" value="local" />
+    <option name="ALTERNATIVE_JRE_PATH" />
+    <envs>
+      <env name="GIT_USERNAME" value="" />
+      <env name="GIT_TOKEN" value="" />
+    </envs>
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
