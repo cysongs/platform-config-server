@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Platform Config Server is a centralized configuration management service built with Spring Boot 3.3.5 and Spring Cloud Config Server 2024.0.0. It serves configuration files from a Git repository (https://github.com/cysongs/platform-config) and provides both standard Spring Cloud Config endpoints and a custom YAML download endpoint.
+Platform Config Server is a centralized configuration management service built with Spring Boot 3.4.0 and Spring Cloud Config Server 2024.0.0. It serves configuration files from a Git repository (https://github.com/dsrvlabs/platform-config) and provides both standard Spring Cloud Config endpoints and a custom YAML download endpoint.
 
 ## Technology Stack
 
 - Java 21
-- Spring Boot 3.3.5
+- Spring Boot 3.4.0
 - Spring Cloud 2024.0.0 (spring-cloud-config-server)
 - Maven build system
 - Docker with Eclipse Temurin base image
@@ -59,7 +59,7 @@ docker run --rm -p 8080:8080 \
 2. **ConfigAsYamlController** (src/main/java/com/example/configserver/web/ConfigAsYamlController.java:1)
    - Custom REST controller providing YAML download endpoint
    - Handles GET requests to `/{service}/{env}`
-   - Maps service name to file naming convention: `{service}-application-{env}.yaml`
+   - Maps service name to directory structure: `{service}/application-{env}.yaml`
    - Uses EnvironmentRepository to fetch configuration
    - Merges property sources and converts to nested YAML structure
    - Returns file as `application.yaml` download
@@ -72,8 +72,8 @@ docker run --rm -p 8080:8080 \
 ### Configuration Flow
 
 1. Request arrives at `GET /config/{service}/{env}?label=main`
-2. Controller maps `{service}` to `{service}-application` name
-3. EnvironmentRepository.findOne() fetches from Git repo
+2. Controller maps `{service}` to `{service}/application` name
+3. EnvironmentRepository.findOne() fetches from Git repo (looks for `{service}/application-{env}.yaml`)
 4. Multiple PropertySource objects are merged into flat map
 5. PropertyTree converts flat map to nested structure
 6. SnakeYAML serializes to YAML string
@@ -81,9 +81,13 @@ docker run --rm -p 8080:8080 \
 
 ### Git Repository Integration
 
-- Repository: https://github.com/cysongs/platform-config
-- File naming: `{service}-application-{env}.yaml`
-  - Example: `wallet-gateway-api-application-dev.yaml`
+- Repository: https://github.com/dsrvlabs/platform-config
+- Directory structure: Each service has its own directory
+  ```
+  {service}/
+    |- application-{env}.yaml
+  ```
+  - Example: `wallet-gateway-api/application-dev.yaml`
 - Clone on start: enabled
 - Force pull: enabled (always gets latest)
 - Search path: root directory
@@ -91,16 +95,20 @@ docker run --rm -p 8080:8080 \
 
 ## Key Patterns and Conventions
 
-### File Naming Convention
-Configuration files must follow: `{service}-application-{env}.yaml`
+### Directory Structure Convention
+Configuration files must follow the directory structure:
+```
+{service}/
+  |- application-{env}.yaml
+```
 - service: The service name (e.g., "wallet-gateway-api")
 - env: The environment (e.g., "dev", "staging", "prod")
 
 ### Endpoint Mapping
 Custom endpoint `/{service}/{env}` internally maps to:
-- Application name: `{service}-application`
+- Application name: `{service}/application`
 - Profile: `{env}`
-- This leverages Spring Cloud Config's standard resolution logic
+- Spring Cloud Config resolves to: `{service}/application-{env}.yaml`
 
 ### Environment Variables
 - `GIT_USERNAME`: GitHub username (optional, only for private repos)
@@ -115,7 +123,9 @@ Custom endpoint `/{service}/{env}` internally maps to:
 
 **Standard Spring Cloud Config**:
 - `GET /config/{name}/{profile}` - JSON format with property sources
+  - Example: `/config/wallet-gateway-api/application/dev`
 - `GET /config/{name}-{profile}.yml` - YAML format
+  - Example: `/config/wallet-gateway-api/application-dev.yml`
 
 **Health Check**:
 - `GET /config/actuator/health`

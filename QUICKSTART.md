@@ -59,7 +59,7 @@ curl -L -o application.yaml \
   "http://localhost:8080/config/wallet-gateway-api/dev"
 
 # Standard JSON endpoint
-curl "http://localhost:8080/config/wallet-gateway-api-application/dev"
+curl "http://localhost:8080/config/wallet-gateway-api/application/dev"
 
 # Health check
 curl "http://localhost:8080/config/actuator/health"
@@ -87,8 +87,8 @@ SERVER_PORT=8081 ./mvnw spring-boot:run
 
 **Configuration file not found (404)?**
 - Verify the config file exists in the GitHub repo
-- File should be named: `{service}-application-{env}.yaml`
-- Example: `wallet-gateway-api-application-dev.yaml`
+- Directory structure: `{service}/application-{env}.yaml`
+- Example: `wallet-gateway-api/application-dev.yaml`
 - Check server logs for Git errors
 
 ## Next Steps
@@ -127,14 +127,17 @@ Make them executable: `chmod +x scripts/*.sh`
 
 ## Configuration Repository Setup
 
-Your config repository should contain files like:
+Your config repository should have the following directory structure:
 
 ```
 platform-config/
-├── wallet-gateway-api-application-dev.yaml
-├── wallet-gateway-api-application-staging.yaml
-├── wallet-gateway-api-application-prod.yaml
-└── other-service-application-dev.yaml
+├── wallet-gateway-api/
+│   ├── application-dev.yaml
+│   ├── application-staging.yaml
+│   └── application-prod.yaml
+└── other-service/
+    ├── application-dev.yaml
+    └── application-prod.yaml
 ```
 
 Each file contains YAML configuration for a specific service and environment.

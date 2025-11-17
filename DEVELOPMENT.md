@@ -189,7 +189,7 @@ tail -f app.log
 curl -L "http://localhost:8080/config/wallet-gateway-api/dev"
 
 # Standard JSON endpoint
-curl "http://localhost:8080/config/wallet-gateway-api-application/dev"
+curl "http://localhost:8080/config/wallet-gateway-api/application/dev"
 
 # Health check
 curl "http://localhost:8080/config/actuator/health"
@@ -204,7 +204,7 @@ Create a file `requests.http`:
 GET http://localhost:8080/config/wallet-gateway-api/dev
 
 ### Get config as JSON
-GET http://localhost:8080/config/wallet-gateway-api-application/dev
+GET http://localhost:8080/config/wallet-gateway-api/application/dev
 
 ### Health check
 GET http://localhost:8080/config/actuator/health

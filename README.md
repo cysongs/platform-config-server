@@ -20,9 +20,19 @@ Spring Boot 3.x + Spring Cloud Config Server for centralized configuration manag
 
 ## Configuration Repository
 
-- Git Repository: `https://github.com/cysongs/platform-config`
-- File naming convention: `{service}-application-{env}.yaml`
-  - Example: `wallet-gateway-api-application-dev.yaml`
+- Git Repository: `https://github.com/dsrvlabs/platform-config`
+- Directory structure: Each service has its own directory with environment-specific files
+  ```
+  {service}/
+    |- application-{env}.yaml
+    |- application-{env}.yaml
+  ```
+  - Example:
+    ```
+    wallet-gateway-api/
+      |- application-dev.yaml
+      |- application-prod.yaml
+    ```
 
 ## Prerequisites
 
@@ -35,18 +45,21 @@ Spring Boot 3.x + Spring Cloud Config Server for centralized configuration manag
 ### Local Development
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/cysongs/platform-config-server.git
    cd platform-config-server
    ```
 
 2. **Set environment variables** (optional, for private repositories)
+
    ```bash
    export GIT_USERNAME=your-github-username
    export GIT_TOKEN=ghp_your_personal_access_token
    ```
 
 3. **Run the application**
+
    ```bash
    ./mvnw spring-boot:run
    ```
@@ -56,6 +69,7 @@ Spring Boot 3.x + Spring Cloud Config Server for centralized configuration manag
 ### Docker Deployment
 
 1. **Build Docker image**
+
    ```bash
    docker build -t config-server:latest .
    ```
@@ -84,21 +98,77 @@ curl -L -o application.yaml \
   "http://localhost:8080/config/wallet-gateway-api/dev?label=main"
 ```
 
-**Mapping**: Request path `/{service}/{env}` maps to file `{service}-application-{env}.yaml`
+**Mapping**: Request path `/{service}/{env}` maps to file `{service}/application-{env}.yaml`
 
 ### Standard Spring Cloud Config Endpoints
 
 #### JSON Format
+
+⚠️ **Note**: The `/{name}/{profile}` format may not work correctly with the current directory structure (`{service}/application-{env}.yaml`).
+Use the `/{name}-{profile}.yaml` format (see YAML Format section below) for reliable access to configuration files.
+
 ```bash
-# Returns full environment with property sources
-curl "http://localhost:8080/config/wallet-gateway-api-application/dev"
+# Returns full environment with property sources (may not work with current structure)
+# This format expects files like: wallet-gateway-api-prod.yaml or wallet-gateway-api/prod.yaml
+curl "http://localhost:8080/config/wallet-gateway-api/prod"
+
+# With explicit label (branch/tag)
+curl "http://localhost:8080/config/wallet-gateway-api/prod/main"
 ```
 
-#### YAML Format
+**URL Pattern**: `/{name}/{profile}` or `/{name}/{profile}/{label}`
+
+- `name`: Service name (e.g., `wallet-gateway-api`)
+- `profile`: Environment (e.g., `dev`, `prod`)
+- `label`: Git branch/tag (optional, defaults to `main`)
+
+**Limitation**: This format searches for files like `{name}-{profile}.yaml` or `{name}/{profile}.yaml`,
+but our repository structure uses `{name}/application-{profile}.yaml`.
+**Recommended**: Use the `/{name}-{profile}.yaml` format instead (see YAML Format section).
+
+#### YAML Format (Recommended)
+
+Returns the original YAML file content directly from the Git repository.
+
 ```bash
-# Returns configuration in YAML format
-curl "http://localhost:8080/config/wallet-gateway-api-application-dev.yml"
+# Download original YAML file for wallet-gateway-api service in prod environment
+curl -L -o application.yaml \
+  "http://localhost:8080/config/wallet-gateway-api-prod.yaml"
+
+# Download for dev environment
+curl -L -o application.yaml \
+  "http://localhost:8080/config/wallet-gateway-api-dev.yaml"
 ```
+
+**URL Pattern**: `/{name}-{profile}.yaml`
+
+- `name`: Service name (e.g., `wallet-gateway-api`)
+- `profile`: Environment (e.g., `dev`, `prod`)
+
+**How it works**:
+
+```
+요청: /config/wallet-gateway-api-prod.yaml
+  ↓
+파싱: name=wallet-gateway-api, profile=prod
+  ↓
+Search Paths: ["."] + ["wallet-gateway-api"]
+  ↓
+파일 검색: wallet-gateway-api/application-prod.yaml
+  ↓
+발견 및 반환: 원본 YAML 파일 내용
+```
+
+Spring Cloud Config automatically resolves the file path using the `search-paths` configuration:
+
+1. Parses the URL to extract `name` and `profile`
+2. Searches in root directory (`.`) and service directory (`{name}`)
+3. Matches the file pattern: `{name}/application-{profile}.yaml`
+4. Returns the original YAML file content without any transformation
+
+**Note**: Other Spring Cloud Config endpoint formats like `/{name}/{profile}.yml` may not work correctly
+with the current directory structure (`{service}/application-{env}.yaml`).
+Always use the `/{name}-{profile}.yaml` format for reliable access.
 
 ### Health Check
 
@@ -109,6 +179,7 @@ curl "http://localhost:8080/config/actuator/health"
 ## Testing
 
 ### Run all tests
+
 ```bash
 ./mvnw test
 ```
@@ -118,6 +189,7 @@ curl "http://localhost:8080/config/actuator/health"
 Integration tests are disabled by default as they require GitHub access. To run them:
 
 1. Set environment variables:
+
    ```bash
    export GIT_USERNAME=your-username
    export GIT_TOKEN=your-token
@@ -136,17 +208,17 @@ Configuration is managed in `src/main/resources/application.yml`:
 
 - **Server Port**: 8080
 - **Context Path**: `/config`
-- **Git URI**: `https://github.com/cysongs/platform-config`
+- **Git URI**: `https://github.com/dsrvlabs/platform-config`
 - **Default Branch**: `main`
 - **Clone on Start**: `true` (downloads repo on startup)
 - **Force Pull**: `true` (always pulls latest changes)
 
 ### Environment Variables
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `GIT_USERNAME` | GitHub username | No (only for private repos) |
-| `GIT_TOKEN` | GitHub Personal Access Token | No (only for private repos) |
+| Variable       | Description                  | Required                    |
+| -------------- | ---------------------------- | --------------------------- |
+| `GIT_USERNAME` | GitHub username              | No (only for private repos) |
+| `GIT_TOKEN`    | GitHub Personal Access Token | No (only for private repos) |
 
 ### Creating a GitHub Personal Access Token
 
@@ -184,7 +256,7 @@ config-server/
 ## Technology Stack
 
 - **Java**: 21
-- **Spring Boot**: 3.3.5
+- **Spring Boot**: 3.4.0
 - **Spring Cloud**: 2024.0.0
 - **Build Tool**: Maven
 - **Container**: Docker with Eclipse Temurin
@@ -194,7 +266,7 @@ config-server/
 ### Configuration not found (404)
 
 - Verify the configuration file exists in the Git repository
-- Check file naming: `{service}-application-{env}.yaml`
+- Check directory structure: `{service}/application-{env}.yaml`
 - Ensure the repository is accessible (check credentials for private repos)
 - Check logs for Git clone/pull errors
 
@@ -213,16 +285,19 @@ config-server/
 ## Development
 
 ### Build the project
+
 ```bash
 ./mvnw clean package
 ```
 
 ### Run tests
+
 ```bash
 ./mvnw test
 ```
 
 ### Skip tests during build
+
 ```bash
 ./mvnw package -DskipTests
 ```

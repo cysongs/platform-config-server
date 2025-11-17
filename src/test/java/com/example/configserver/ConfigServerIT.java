@@ -77,8 +77,9 @@ class ConfigServerIT {
     @Disabled("Requires GitHub access token - enable manually for local testing")
     void testStandardEndpoint_json() {
         // Test standard Spring Cloud Config endpoint: /{name}/{profile}
+        // New structure: {service}/application maps to {service}/application-{env}.yaml
         ResponseEntity<String> response = restTemplate.getForEntity(
-                "/config/wallet-gateway-api-application/dev",
+                "/config/wallet-gateway-api/application/dev",
                 String.class
         );
 
@@ -93,8 +94,9 @@ class ConfigServerIT {
     @Disabled("Requires GitHub access token - enable manually for local testing")
     void testStandardEndpoint_yaml() {
         // Test standard YAML endpoint: /{name}-{profile}.yml
+        // New structure: {service}/application-{env}.yml
         ResponseEntity<String> response = restTemplate.getForEntity(
-                "/config/wallet-gateway-api-application-dev.yml",
+                "/config/wallet-gateway-api/application-dev.yml",
                 String.class
         );
 

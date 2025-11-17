@@ -19,7 +19,12 @@ import java.util.Map;
 
 /**
  * Custom controller that returns merged configuration as a YAML file named application.yaml.
- * Maps the request path /{service}/{env} to the file naming convention: {service}-application-{env}.yaml
+ * Maps the request path /{service}/{env} to the directory structure: {service}/application-{env}.yaml
+ * 
+ * Repository structure:
+ *   {service}/
+ *     |- application-{env}.yaml
+ *     |- application-{env}.yaml
  */
 @RestController
 @RequestMapping
@@ -57,15 +62,23 @@ public class ConfigAsYamlController {
 
         log.info("Fetching config for service={}, env={}, label={}", service, env, label);
 
-        // Map request to file naming convention: {service}-application-{env}.yaml
-        String application = service + "-application";
-
-        // Fetch configuration from repository
+        // Map request to directory structure: {service}/application-{env}.yaml
+        // Spring Cloud Config resolves files in the following order:
+        // 1. {application}-{profile}.yaml (in root or search-paths)
+        // 2. {application}/{profile}.yaml (directory structure)
+        // 
+        // Since our files are in {service}/application-{env}.yaml format,
+        // we need to use:
+        // - application name = "{service}" (the service directory)
+        // - profile = "application-{env}" (the file name without extension)
+        // This will make Spring Cloud Config look for: {service}/application-{env}.yaml
+        String applicationName = service;
+        String profile = "application-" + env;
         Environment envObj;
         try {
-            envObj = environmentRepository.findOne(application, env, label);
+            envObj = environmentRepository.findOne(applicationName, profile, label);
         } catch (Exception e) {
-            log.error("Error fetching configuration for {}-{} (label={})", application, env, label, e);
+            log.error("Error fetching configuration for {}/application-{} (label={})", service, env, label, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(String.format("{\"error\": \"Failed to fetch configuration: %s\"}", e.getMessage()));
@@ -73,42 +86,42 @@ public class ConfigAsYamlController {
 
         // Check if configuration exists
         if (envObj == null || envObj.getPropertySources() == null || envObj.getPropertySources().isEmpty()) {
-            log.warn("Configuration not found for {}-{} (label={})", application, env, label);
+            log.warn("Configuration not found for {}/application-{} (label={})", service, env, label);
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(String.format("{\"error\": \"Configuration not found for %s-%s.yaml (label=%s)\"}",
-                            application, env, label));
+                    .body(String.format("{\"error\": \"Configuration not found for %s/application-%s.yaml (label=%s)\"}",
+                            service, env, label));
         }
 
-        log.debug("Found {} property sources for {}-{}", envObj.getPropertySources().size(), application, env);
+        log.debug("Found {} property sources for {}/application-{}", envObj.getPropertySources().size(), service, env);
 
-        // Merge all property sources into a flat map
-        Map<String, Object> merged = new LinkedHashMap<>();
-        for (PropertySource ps : envObj.getPropertySources()) {
-            log.debug("Processing property source: {}", ps.getName());
-            if (ps.getSource() instanceof Map<?, ?> map) {
-                map.forEach((k, v) -> {
-                    String key = String.valueOf(k);
-                    Object value = v;
-                    // Handle null values
-                    if (value == null) {
-                        value = "";
-                    }
-                    merged.put(key, value);
-                });
-            }
+        // Get the first property source (which contains the actual YAML file content)
+        PropertySource firstSource = envObj.getPropertySources().get(0);
+        log.debug("Using property source: {}", firstSource.getName());
+        
+        if (!(firstSource.getSource() instanceof Map<?, ?>)) {
+            log.error("Property source is not a Map: {}", firstSource.getSource().getClass());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body("{\"error\": \"Invalid property source format\"}");
         }
 
-        log.debug("Merged {} properties", merged.size());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> sourceMap = (Map<String, Object>) firstSource.getSource();
+        log.debug("Source map contains {} properties", sourceMap.size());
 
         // Convert flat map to nested structure
         Map<String, Object> tree = new LinkedHashMap<>();
-        merged.forEach((k, v) -> PropertyTree.put(tree, k, v));
+        sourceMap.forEach((k, v) -> {
+            // Handle null values
+            Object value = v == null ? "" : v;
+            PropertyTree.put(tree, k, value);
+        });
 
         // Serialize to YAML
         String body = yaml.dump(tree);
 
-        log.info("Successfully generated YAML configuration ({} bytes) for {}-{}", body.length(), application, env);
+        log.info("Successfully generated YAML configuration ({} bytes) for {}/application-{}", body.length(), service, env);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"application.yaml\"")
